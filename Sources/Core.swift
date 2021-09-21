@@ -1039,6 +1039,7 @@ class Core: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func allowScrollPanGesture(for scrollView: UIScrollView) -> Bool {
+        return false
         guard state == layoutAdapter.mostExpandedState else { return false }
         var offsetY: CGFloat = 0
         switch layoutAdapter.position {
