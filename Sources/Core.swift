@@ -457,6 +457,7 @@ class Core: NSObject, UIGestureRecognizerDelegate {
                             // Hide a scroll indicator just before starting an interaction by swiping a panel down.
                             if velocity > 0, !allowScrollPanGesture(for: scrollView) {
                                 lockScrollView()
+                                tearDownScroll()
                             }
                             // Show a scroll indicator when an animation is interrupted at the top and content is scrolled up
                             if velocity < 0, allowScrollPanGesture(for: scrollView) {
@@ -842,6 +843,15 @@ class Core: NSObject, UIGestureRecognizerDelegate {
         panGestureRecognizer.isEnabled = true
     }
 
+    private func tearDownScroll() {
+        // Cancel scrollview's scroll
+        // this ensures scroll .began events are re-triggered
+        // allows us to have a continous scroll of the scrollview, then scroll the panel
+        // once the scrollview reaches the top
+        scrollView?.panGestureRecognizer.isEnabled = false
+        scrollView?.panGestureRecognizer.isEnabled = true
+    }
+
     private func shouldAttract(to targetState: FloatingPanelState) -> Bool {
         if layoutAdapter.position(for: targetState) == value(of: layoutAdapter.surfaceLocation) {
             return false
@@ -1039,7 +1049,6 @@ class Core: NSObject, UIGestureRecognizerDelegate {
     }
 
     private func allowScrollPanGesture(for scrollView: UIScrollView) -> Bool {
-        return false
         guard state == layoutAdapter.mostExpandedState else { return false }
         var offsetY: CGFloat = 0
         switch layoutAdapter.position {
