@@ -306,6 +306,8 @@ class Core: NSObject, UIGestureRecognizerDelegate {
         if let result = panGestureRecognizer.delegateProxy?.gestureRecognizer?(gestureRecognizer, shouldRequireFailureOf: otherGestureRecognizer) {
             return result
         }
+        // Franck: Make sure we always get both gesture (from the panel and from the scroll view)
+        return false
 
         guard gestureRecognizer == panGestureRecognizer else { return false }
 
@@ -401,7 +403,8 @@ class Core: NSObject, UIGestureRecognizerDelegate {
                             stopScrolling(at: initialScrollOffset)
                         }
                     }
-                } else {
+                // Franck: Stop scrolling fixes the scroll view, we want it only is scrolling down
+                } else if velocity < 0 || interactionInProgress {
                     stopScrolling(at: initialScrollOffset)
                 }
 
@@ -457,7 +460,6 @@ class Core: NSObject, UIGestureRecognizerDelegate {
                             // Hide a scroll indicator just before starting an interaction by swiping a panel down.
                             if velocity > 0, !allowScrollPanGesture(for: scrollView) {
                                 lockScrollView()
-                                tearDownScroll()
                             }
                             // Show a scroll indicator when an animation is interrupted at the top and content is scrolled up
                             if velocity < 0, allowScrollPanGesture(for: scrollView) {
@@ -564,10 +566,11 @@ class Core: NSObject, UIGestureRecognizerDelegate {
             }
         }
 
+        guard  interactionInProgress == false else {return false} // When interaction already in progress, don't scroll.
+
         guard
-            state == layoutAdapter.mostExpandedState,  // When not top most(i.e. .full), don't scroll.
-            interactionInProgress == false,        // When interaction already in progress, don't scroll.
-            0 == layoutAdapter.offsetFromMostExpandedAnchor
+            scrollView.contentOffset.y > 0, // Scroll view is not at top, don't scroll
+            velocity > 0 // Scrolling up, don't scroll
         else {
             return false
         }
@@ -627,13 +630,7 @@ class Core: NSObject, UIGestureRecognizerDelegate {
         log.debug("panningBegan -- location = \(value(of: location))")
 
         guard let scrollView = scrollView else { return }
-        if state == layoutAdapter.mostExpandedState {
-            if grabberAreaFrame.contains(location) {
-                initialScrollOffset = scrollView.contentOffset
-            }
-        } else {
-            initialScrollOffset = scrollView.contentOffset
-        }
+        initialScrollOffset = scrollView.contentOffset
     }
 
     private func panningChange(with translation: CGPoint) {
@@ -789,7 +786,8 @@ class Core: NSObject, UIGestureRecognizerDelegate {
             if grabberAreaFrame.contains(location) {
                 initialScrollOffset = scrollView.contentOffset
             } else {
-                initialScrollOffset = contentOffsetForPinning(of: scrollView)
+                //initialScrollOffset = contentOffsetForPinning(of: scrollView)
+                initialScrollOffset = scrollView.contentOffset
                 let offsetDiff = scrollView.contentOffset - contentOffsetForPinning(of: scrollView)
                 switch layoutAdapter.position {
                 case .top, .left:
@@ -805,6 +803,8 @@ class Core: NSObject, UIGestureRecognizerDelegate {
                 }
             }
             log.debug("initial scroll offset --", initialScrollOffset)
+        } else if let scrollView = scrollView {
+            initialScrollOffset = scrollView.contentOffset
         }
 
         initialTranslation = translation
